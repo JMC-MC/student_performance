@@ -13,5 +13,7 @@ Student performance predictions can be used to inform the education process and 
 
 This reports seeks to describe how student's likelihood of passing a subject can be predicted using survey and grade data. In order to allow educators to take early remedial action the study focuses on using survey data collected prior to the course and grades from the first period of study. As the model output is intended to inform educators it is important to consider what information might be needed or required. By predicting the students final grade educators can be informed of both the likely outcome, in terms of pass or fail, as well as the magnitude of the performance. Such a model will allow teachers to better understand the requirement for remedial action and therefore take steps to improve overall performance. 
 
-Project aim - Develop a model that accurately predicts a students final grade. 
+Project aim - Develop a model that accurately predicts a students final grade in mathematics. 
+
+
 
