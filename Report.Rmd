@@ -1,0 +1,17 @@
+---
+title: "Student Performance"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+## Introduction
+
+Education institutes commonly use exam metrics including pass/failure rates to measure organisational performance. Student performance data is often measured numerical and this data is commonly stored for analysis. For these reasons education data is a good candidate for data analysis and the use of machine learning practices. Paulo Cortez and Alice Silva from University of Minho conducted a study in 2008 to investigate how machine learning may be used to predict student performance. The data used in this study has been made available on the UCI Machine Learning Repository, and is the main data source for this report. 
+
+Student performance predictions can be used to inform the education process and in turn improve final outcomes. For example if students that are at a high risk of failing can be identified than resources and remedial processes can be put in place to try and improve outcomes. For this process to work effectively educators need to have accurate predictions of students final outcomes as early as possible. 
+
+This reports seeks to describe how student's likelihood of passing a subject can be predicted using survey and grade data. In order to allow educators to take early remedial action the study focuses on using survey data collected prior to the course and grades from the first period of study. As the model output is intended to inform educators it is important to consider what information might be needed or required. By predicting the students final grade educators can be informed of both the likely outcome, in terms of pass or fail, as well as the magnitude of the performance. Such a model will allow teachers to better understand the requirement for remedial action and therefore take steps to improve overall performance. 
+
+Project aim - Develop a model that accurately predicts a students final grade. 
+
