@@ -9,11 +9,55 @@ output:
 
 Education institutes commonly use exam metrics including pass/failure rates to measure organisational performance. Student performance data is often measured numerical and this data is commonly stored for analysis. For these reasons education data is a good candidate for data analysis and the use of machine learning practices. Paulo Cortez and Alice Silva from University of Minho conducted a study in 2008 to investigate how machine learning may be used to predict student performance. The data used in this study has been made available on the UCI Machine Learning Repository, and is the main data source for this report. 
 
-Student performance predictions can be used to inform the education process and in turn improve final outcomes. For example if students that are at a high risk of failing can be identified than resources and remedial processes can be put in place to try and improve outcomes. For this process to work effectively educators need to have accurate predictions of students final outcomes as early as possible. 
+Student performance predictions can be used to inform the education process and in turn improve final outcomes. For example if students that are at a high risk of failing can be identified early than resources and remedial processes can be put in place to try and improve overall outcomes. For this process to work effectively educators need to have accurate predictions of students final outcomes as early as possible. 
 
-This reports seeks to describe how student's likelihood of passing a subject can be predicted using survey and grade data. In order to allow educators to take early remedial action the study focuses on using survey data collected prior to the course and grades from the first period of study. As the model output is intended to inform educators it is important to consider what information might be needed or required. By predicting the students final grade educators can be informed of both the likely outcome, in terms of pass or fail, as well as the magnitude of the performance. Such a model will allow teachers to better understand the requirement for remedial action and therefore take steps to improve overall performance. 
+This reports seeks to describe how student's likelihood of passing a subject can be predicted using survey and grade data. In order to allow educators to take early remedial action the study focuses on using survey data collected prior to the course and grades from the first period of study. As the model output is intended to inform educators it is important to consider what information might be needed or required. By predicting the students final grade educators can be informed of both the likely outcome, in terms of pass or fail, as well as the magnitude of the deficit in performance. Such a model will allow teachers to better understand the requirement for remedial action and therefore take steps to improve overall performance. 
 
-Project aim - Develop a model that accurately predicts a students final grade in mathematics. 
+Project aim - Develop a model that accurately predicts a students final grade. 
 
+The selected data set contains data from two subjects, Mathematics and Portuguese. This project aims to develop a model that provides information that can be put into use during the education process. In contrast to Cortez and Silva this study focuses on developing models for individual subjects. It is assumed that this approach will better serve the aims of the project by providing predictions that can be used to inform specific remedial action. 
+
+By focusing on individual subject we reduce the training data available and increase the risk of over fitting. * Describe how this risk monitored and been mitigated *
+
+Start with Portuguese as this is a larger data set.
+
+We are predicting a continuous variable and will therefore use regression algorithms in this study. 
+
+Loss function - Uses RMSE to optimize the model and describe the loss in the same units as the exam scores.
+
+## Preprocessing
+
+- removing predictors with very few non-unique values or close to zero variation.
+
+```{r}
+describe(train_set)
+```
+The following categorical variables have more than 80% of students in a single category. Pstatus, Failures, Schoolsup, Paid, nursery, higher. For this reason we will not use these variables as predictors. 
+
+Varibles Mjob & Fjob standing for mother and father job both have the majority of response in the category "other", this gives us very little information about their actual occupation. As this data is not very informative we will also remove it from our predictors list. 
+
+
+
+- removing predictors that are highly correlated with others
+
+
+
+preprocessing include 
+- standardizing the predictors,
+  - Notes for standardizing or normalizing and when to do it. Found a good blog on this, the aim is to ensure that when using algorithms that don't assume a distribution we are ensuring that the scale of a variable does     not cause it to have a bias within the the algorithm.            https://towardsai.net/p/data-science/how-when-and-why-should-you-normalize-standardize-rescale-your-data-3f083def38ff
+  Normalization is a good technique to use when you do not know the distribution of your data or when you know the distribution is not Gaussian (a bell curve). Normalization is useful when your data has varying scales and the algorithm you are using does not make assumptions about the distribution of your data, such as k-nearest neighbors and artificial neural networks.
+
+Standardization assumes that your data has a Gaussian (bell curve) distribution. This does not strictly have to be true, but the technique is more effective if your attribute distribution is Gaussian. Standardization is useful when your data has varying scales and the algorithm you are using does make assumptions about your data having a Gaussian distribution, such as linear regression, logistic regression, and linear discriminant analysis.
+  - 
+- taking the log transform of some predictors, 
+
+
+## Model Selection
+### Linear regression 
+  Decisions of adapting the model were informed from the fit plots. 
+  This site explains the interpretation of the qq plot. https://boostedml.com/2019/03/linear-regression-plots-how-to-read-a-qq-plot.html
+### Penalized Linear Regression
+
+The consequence of imposing this penalty, is to reduce (i.e. shrink) the coefficient values towards zero. This allows the less contributive variables to have a coefficient close to zero or equal zero.
 
 
