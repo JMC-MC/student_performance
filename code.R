@@ -8,7 +8,9 @@
 
 # Check for and install required packages
 
-list_of_packages <- c("ggplot2", "tidyverse","corrplot","caret","GGally","Hmisc","glmnet","kernlab","caretEnsemble")
+list_of_packages <- c("ggplot2", "tidyverse","corrplot","caret","GGally",
+                      "Hmisc","glmnet","kernlab","caretEnsemble","standardize",
+                      "rpart.plot")
 new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[,"Package"])]
 if(length(new_packages)) install.packages(new_packages)
 
@@ -32,13 +34,12 @@ na_math
 na_port <- df_port[rowSums(is.na(df_port)) > 0,]
 # No NAs or blanks in the port class data.
 
-# Divide data into training and validation set
+# Divide port data into training and test set
 set.seed(2017)
 train_index <- createDataPartition(y=df_port$G3, p=0.9, list=FALSE)
 
 train_set <- df_port[train_index,]
-valid_set <- df_port[-train_index,]
-
+test_set <- df_port[-train_index,]
 ##################################################
 # Explore
 ##################################################
@@ -138,7 +139,6 @@ mul_reg_pp <- predict(processed,as.data.frame(ts_p9))
 processed <- preProcess(ts_p9[,-16],method = c("center", "scale"))
 stan_pp <- predict(processed,as.data.frame(ts_p9))
 
-
 ##################################################
 # Develop models
 ##################################################
@@ -158,7 +158,11 @@ RMSE <- function(true_score, predicted_score){
   
   # Fit the model using all predictor
   set.seed(2009)
-  mul_reg_fit <- train(G3~., data = mul_reg_pp,method="lm",trControl = trainControl(method = "repeatedcv",number = 10,repeats = 3))
+  mul_reg_fit <- train(G3~., 
+                       data = mul_reg_pp,method="lm",
+                       trControl = trainControl(method = "repeatedcv",
+                                                number = 10,
+                                                repeats = 3))
   mul_reg_fit$results
   summary(mul_reg_fit)
   # Remove insignificant predictors 
@@ -206,7 +210,7 @@ RMSE <- function(true_score, predicted_score){
                   method="glmnet",
                   metric = "RMSE",
                   trControl = trainControl(method="repeatedcv", number=10, repeats=3))
-  min(ridge_fit$results$RMSE)
+  min(glmnet_fit$results$RMSE)
   # Tune using grid method 
   lambda <- seq(0.0001, 1, length = 100)
   glmnet_fit_tune = train(G3 ~ ., 
@@ -314,7 +318,7 @@ RMSE <- function(true_score, predicted_score){
   # The multivariate regression cannot be used due to the adjustments that have been made outside of the model
   set.seed(2017)  
   model_list <- caretList(G3 ~ .,
-    data=stan_pp,
+    data=ts_p9,
     trControl = trainControl(method="repeatedcv", number=10, repeats=3, savePredictions = "final"),
     methodList = c("lm","glmnet", "rf", "knn","svmLinear"),
     tuneList = NULL,
@@ -331,7 +335,7 @@ RMSE <- function(true_score, predicted_score){
   varImp(rf_ensemble$ens_model)
   min(rf_ensemble$error$RMSE)
  #RMSE 2.35
- 
+
 ##################################################
 # Compare models using RMSE
 ##################################################
@@ -344,35 +348,60 @@ model_comp %>% arrange(by=RMSE)
 # The top performing models are Ensemble & Multivariate Regression.
 
 ##################################################
-# Validate selected models
+# Test selected models
 ##################################################
-# Adjust validation set to include Pedu & Aalc
-valid_set_adj <- valid_set %>% mutate(Pedu = (Medu+Fedu)/2,Aalc = (Dalc+Walc)/2) %>% select(-c(Medu,Fedu,Dalc,Walc))
+# Adjust test set to include Pedu & Aalc
+test_set_adj <- test_set %>% mutate(Pedu = (Medu+Fedu)/2,Aalc = (Dalc+Walc)/2) %>% select(-c(Medu,Fedu,Dalc,Walc))
 #Convert all chr variables to factors & then to numeric
-valid_set_adj_num <- valid_set_adj %>% mutate_if(is.character,as.factor) %>% mutate_if(is.factor,as.numeric)
+test_set_adj_num <- test_set_adj %>% mutate_if(is.character,as.factor) %>% mutate_if(is.factor,as.numeric)
 
-# Validate Ensemble model
-ens_pred <- predict(rf_ensemble,valid_set_adj_num)
-final_ens_RMSE <-  RMSE(valid_set_adj_num$G3,ens_pred)
+# Test Ensemble model
+ens_pred <- predict(rf_ensemble,test_set_adj_num)
+final_ens_RMSE <-  RMSE(test_set_adj_num$G3,ens_pred)
 final_ens_RMSE
 
+# Calculate error summaries 
+postResample(pred = ens_pred, obs = test_set_adj_num$G3)
+
 # Create results data frame
-results <- data.frame(predictions=ens_pred,scores=valid_set_adj_num$G3,errors=valid_set_adj_num$G3-ens_pred)
-ggplot(data = results,aes(errors)) + geom_histogram(binwidth = 1)
+results <- data.frame(predictions=ens_pred,scores=test_set_adj_num$G3,
+                      residual=test_set_adj_num$G3-ens_pred)
 
-# Summarize errors
-summary(results$errors)
-sd(results$errors)
+# Summarize the residuals
+summary(results$residual)
 
-ggplot(data = results,aes(predictions)) + geom_histogram(binwidth = 1)
-ggplot(data = results,aes(scores)) + geom_histogram(binwidth = 1)
+# What percentage of predictions were between +-3 from actual score?
+no_pred_in3 <- results %>% filter(abs(residual)<3) %>% nrow()
+perc_in3 <- (no_pred_in3/nrow(results))*100
+perc_in3 
+# Find predictions over 4 points from actual score?
+pred_over4 <- results %>% filter(abs(residual)>4)
+pred_over4
 
+# Join original test data and results data frame
+test_set_results <- cbind(test_set_adj_num,results)
 
+# Inspect observations with largest residuals 
+test_set_results %>% arrange(by=desc(abs(residual))) %>% head(7)
 
-# Validate Multi Variate Regression model
-mul_reg_pred <- predict(mul_reg_fit_log,valid_set_adj_num)
-final_multi_reg_RSME <- RMSE(valid_set_adj_num$G3,10^mul_reg_pred)
+# Plot the residuals vs the actual scores
+ggplot(results,aes(scores, residual)) + 
+  geom_jitter(color = "#59a14f", width = 0.1, alpha = 0.5,) + 
+  geom_smooth(color = "#59a14f") + theme_minimal()
+# There appears to be a positive correlation between scores and residuals.
 
-# The high RMSE for the Multi Variate Regression model compared to the RMSE during training suggests that the model has been over fitted
+# Plot the residuals vs predicted values
+
+ggplot(results,aes(predictions, residual)) + 
+  geom_point(color = "#f28e2b",alpha = 0.5,) + 
+  geom_smooth(color = "#f28e2b") + theme_minimal()
+
+results %>% rename(actual = scores, predicted = predictions) %>% 
+  pivot_longer(-residual, names_to="score_type",values_to = "score") %>% 
+  ggplot(aes(score, residual)) + 
+  geom_line(aes(group=residual),color="grey",alpha=0.3) + 
+  geom_point(aes(color=score_type),alpha=0.75) + 
+  theme_minimal()
+
 
 
