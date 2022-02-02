@@ -18,21 +18,17 @@ if(length(new_packages)) install.packages(new_packages)
 
 lapply(list_of_packages,library,character.only = TRUE)
 
-# Load data from local file using relative file path
+# Load data from local file using Gitrepo link
 
-df_math <- read.csv("data/student-mat.csv",sep=";",header=TRUE)
-df_port <- read.csv("data/student-por.csv",sep=";",header=TRUE)
+df_port <- read.csv("https://raw.githubusercontent.com/JMC-MC/student_performance/master/data/student-por.csv",sep=";",header=TRUE)
 
 ##################################################
 # Cleaning
 ##################################################
  
 #Check for NAs and blanks
-na_math <- df_math[rowSums(is.na(df_math)) > 0,]
-na_math
-# No NAs or blanks in the maths class data. 
 na_port <- df_port[rowSums(is.na(df_port)) > 0,]
-# No NAs or blanks in the port class data.
+# No NAs or blanks in the maths class data. 
 
 # Divide port data into training and test set
 set.seed(2017)

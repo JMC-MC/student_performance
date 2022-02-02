@@ -1,17 +1,18 @@
 ---
 title: "Student Performance"
 output:
-  html_notebook: default
   pdf_document: default
+  html_notebook: default
 ---
 
 ## Introduction
 
 Education institutes commonly use exam metrics including pass/failure rates to measure organisational performance. The associated data is often properly collected and stored making it good candidate for data analysis and the use of machine learning practices. Paulo Cortez and Alice Silva from University of Minho conducted a study in 2008 to investigate how machine learning may be used to predict student performance. The data used in this study has been made available on the UCI Machine Learning Repository, and is the main data source for this report. 
-
 Student performance predictions can be used to inform the education process and in turn improve final outcomes. For example if students that are at a high risk of failing can be identified early, then remedial processes can be put in place to try and improve overall outcomes. For this process to work effectively educators need to have accurate predictions of students final outcomes as early as possible. 
 
-This reports seeks to described how machine learning practices can be used to predict students performance. In order to allow educators to take early remedial action the study focuses on using survey data collected prior to the course. As the model output is intended to inform educators it is important to consider what information might be needed or required. By predicting the students final grade, educators can be informed of both the likely outcome in terms of pass or fail as well as the magnitude of the deficit in performance. Such a model will allow teachers to better understand the requirement for remedial action and therefore take steps to improve overall performance. 
+This reports seeks to described how machine learning practices can be used to predict students performance. In order to allow educators to take early remedial action the study focuses on using survey data collected before the start of a course. As the model output is intended to inform educators it is important to consider what information might be needed or required. By predicting the students final grade, educators can be informed of both the likely outcome in terms of pass or fail as well as the magnitude of the deficit in performance. Such a model will allow teachers to better understand the requirement for remedial action and therefore take steps to improve overall performance. 
+
+The findings of this report show that an ensemble machine learning model can make useful predictions for student outcomes. The final predictions have Root Means Square Error of 2.26 when predicting a score from 1-20. The report concludes that this level of accuracy is sufficient to make the predictions of use to educators. It is recommended that future studies should investigate the utility and accuracy of classification models to the predicts whether or not a student will pass or fail the subject
 <br>
 
 ### Project aim - Develop a machine learning model that accurately predicts a students final grade. 
@@ -22,14 +23,15 @@ This reports seeks to described how machine learning practices can be used to pr
 
 ### Data Exploration 
 
-The selected data set contains data from two subjects, Mathematics and Portuguese. This project aims to develop a model that provides information that can be put into use during the education process. In contrast to Cortez and Silva this study focuses on developing models for individual subjects. It is assumed that this approach will better serve the aims of the project by providing predictions that can be used to inform specific remedial action. The Portuguese data set was selected as it contains more observations of equal quality, allowing for the development of a more accurate model. 
+The selected data set contains data from two subjects, Mathematics and Portuguese. This project aims to develop a model that will inform the education process. In contrast to Cortez and Silva this study focuses on developing models for individual subjects. It is assumed that this approach will better serve the aims of the project by providing predictions that can be used to inform specific remedial action. The Portuguese data set was selected as it contains more observations and the date is of equal quality to the maths data set. This should allow for the development of a more accurate model. 
 
 To start to understand the data I began by referring to the data dictionary, which can be found <a href='https://github.com/JMC-MC/student_performance/blob/master/data/student.txt'>here</a>. From initial observation it is clear that the majority of the data has been collected using questions in student surveys. The only exception to this is the exam scores (G1,G2,G3)
 
-Before further exploration I first divided the port data frame into a training and test set. There are 649 observations in the port dataset in order to maximise the available training data the set was split 90%/10% training and test. A cross validation method was selected for model evaluation allowing all most all training data to be used to for model training and evaluation. With 63 observations the test set similar to the number of students in a class or intake. By applying the final model to the test set we can gain an appreciation of how the model may perform with real world data. 
+Before further exploration I first divided the port data frame into a training and test set. There are 649 observations in the port dataset in order to maximise the available training data the set was split 90%/10% training and test. A cross validation method was selected for model evaluation allowing all most all training data to be used to for model training and evaluation. With 63 observations the test set is similar to the number of students in a class or intake. By applying the final model to the test set we can gain an appreciation of how the model may perform with real world data. 
 
-In this repor the training data set was used for data exploration purposed. This approach allowed for preprocessing and model design decisions to be informed by a large portion of the data, whilst retaining unseen data or "hold out data" for final testing. 
-```{r}
+In this report the training data set was used for data exploration purposes. This approach allowed for preprocessing and model design decisions to be informed by a large portion of the data, whilst retaining unseen data or "hold out data" for final testing. 
+```{r include=FALSE}
+ knitr::opts_chunk$set(fig.pos = "!H", out.extra = "")
 # Check for and install required packages
 
 list_of_packages <- c("ggplot2", "tidyverse","corrplot","caret","GGally",
@@ -41,29 +43,40 @@ if(length(new_packages)) install.packages(new_packages)
 #Attach required packages
 
 lapply(list_of_packages,library,character.only = TRUE)
+
+# Load data from local file using Gitrepo link
+
+df_port <- read.csv("https://raw.githubusercontent.com/JMC-MC/student_performance/master/data/student-por.csv",sep=";",header=TRUE)
+
+# Divide port data into training and test set
+set.seed(2017)
+train_index <- createDataPartition(y=df_port$G3, p=0.9, list=FALSE)
+
+train_set <- df_port[train_index,]
+test_set <- df_port[-train_index,]
+##################################################
 ```
 
 Looking at the quality of the data, the code below shows us that the data is complete with no NA values. 
 ```{r}
-df_math[rowSums(is.na(df_math)) > 0,]
+df_port[rowSums(is.na(df_port)) > 0,]
 ```
-Additionally we can see from the table below that a significant number of variable are "character" class.The data dictionary also tells us that the "integer" data is mostly categorical. 
-```{r echo=FALSE, message=TRUE, warning=TRUE}
+Additionally we can see from the table below that a significant number of variables are "character" class.The data dictionary also tells us that the "integer" data is mostly categorical. 
+```{r echo=FALSE, message=FALSE, warning=TRUE}
 classes <- lapply(train_set,class)
 df_classes <-t(as.data.frame(classes))
 kable(`colnames<-`(df_classes,"Class"))
 ```
 Taking a closer look at each of the predictors we can see that some are significantly imbalanced. The table below shows the predictors that have more than 80% of responses in one category. 
-```{r echo=FALSE, message=TRUE, warning=TRUE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 train_set %>% select(Pstatus,failures,schoolsup,paid,nursery,higher) %>% tbl_summary()
 ```
 <br>
 Exploring the data further we can see that Mjob and Fjob have a significant portion of responses in the 'other' category. These predictors are not informative as most responses are in a very broad category. 
-```{r echo=FALSE, message=TRUE, warning=TRUE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 train_set %>% select(Mjob,Fjob) %>% tbl_summary()
 ```
-<br>
 The aim of this project is to accurately predict final exam scores (G3) for any given student. Looking through the G3 column we can see that all values are integers, it is unclear if this is a discrete or continuous variable. For the purpose of this study exam scores are regarded as continuous variables and regression algorithms are applied in order to predict scores. This report uses the Root Mean Square Error to optimize the models and therefore describes the loss in the same units as the exam scores.
 
 Exploring the distribution of G3 within the training data set we can observe some interesting characteristics. The plot below highlights that out of 586 students 15 scored 0. The remainder of the the G3 results approximate a normal distribution.
@@ -134,9 +147,9 @@ stan_pp <- predict(processed,as.data.frame(ts_p9))
 
 In order to ensure the best accuracy for each machine learning model the data needs to be processed before being passed to an algorithm. The pre processing for this project followed a number of steps all of which are outlined below. 
 
-1. Outliers were removed from the G3 category. During data exploration we saw that some students score 0 and 1 student scored 1. These scores are significantly different for the other data. Some reasons for this might include, student did not attend exam or a mistake when inputting data. During preprocessing all scores less than 1 were removed from the data. 
+1. Outliers were removed from the G3 category. During data exploration we saw that some students score 0 and 1 student scored 1. These scores are significantly different for the other data. Some reasons for this might include, student did not attend exam or a mistake was made when inputting data. During preprocessing all scores less than 1 were removed from the data. 
 
-2. Remove predictors with very few non-unique values or close to zero variation. Data exporation revealved several predictors that had more than 80% of responses in a single category and 1 predictor that contained information that was non-specific. The following predictors were removed from the data due to the reasons above; Pstatus, failures, schoolsup, paid, nursery, higher, Mjob,Fjob.
+2. Remove predictors with very few non-unique values or close to zero variation. Data exploration revealed several predictors that had more than 80% of responses in a single category and 1 predictor that contained information that was non-specific. The following predictors were removed from the data due to the reasons above; Pstatus, failures, schoolsup, paid, nursery, higher, Mjob,Fjob.
 
 3. All data points were transformed into numeric values this allows several different types of models to be used during the predictions phase of the project. 
 
@@ -147,7 +160,7 @@ crs <- ts_p4 %>% cor()
 corrplot(crs,method = 'square')
 ```
 
-There is a correlation coefficient of 0.63 Mother (Medu) and Father (Fedu) education levels. Intuitively we would expect parent education to be a good predictor of a students academic performance, so we want to preserve the predictor. We will do this by calculating the mean of Medu and Fedu and drop both variables and creating a new predictor Parents Education Pedu. The code snippet below shows how this was calculated.
+There is a correlation coefficient of 0.63 Mother (Medu) and Father (Fedu) education levels. Intuitively we would expect parent education to be a good predictor of a students academic performance, so we want to preserve the predictor. We will do this by calculating the mean of Medu and Fedu and drop both variables,creating a new predictor Parents Education Pedu. The code snippet below shows how this was calculated.
 ```{r echo=TRUE}
  ts_p4 %>% mutate(Pedu = (Medu+Fedu)/2) %>% select(Pedu) %>% head() %>% kable()
 ```
@@ -157,17 +170,23 @@ Daily and weekly alcohol intake share a similar relationship to the education pr
 
 ```
 The 'Go out' predictor is correlated with two other predictors (freetime and Aalc)
-this maybe because students with freetime are going out and drinking. It is assumed that this information is captured in other predictors, therefore "goout' was removed during preprocessing. 
+this maybe because students with free time are going out and drinking. It is assumed that this information is captured in other predictors, therefore "goout' was removed during preprocessing. 
 
 There is also a correlation between school, travel time and address.
-"School" is correlated with G3 was assumed to be a good predictor, therefore travel time and address were removed. The aim of this project is to make accurate exam score predictions without the use of previous exam results, therefore during preprocessing G1 and G2 we removed. At this stage the data was normalized, for use in multiple regression model and standardize for use elsewhere in the model development phase. 
-
+"School" is correlated with G3 and is assumed to be a good predictor, therefore travel time and address were removed. The aim of this project is to make accurate exam score predictions without the use of previous exam results, therefore during preprocessing G1 and G2 we removed. At this stage the data was normalized for use in multiple regression model and standardized for use elsewhere in the model development phase. 
 
 ### Modeling Approaches
-During this project 8 machine learning models were fitted tested and compared.The models were evaluated using the Root Mean Square Error (RMSE). The following paragraphs describe how each model was fitted, with a final paragraph that compares the results for each model.
+During this project 8 machine learning models were fitted, tested and compared.The models were evaluated using their Root Mean Square Error (RMSE). The following paragraphs describe how each model was fitted, with a final paragraph that compares the results for each model.
 
 #### Naive model 
-In order to provide a bench mark for model development I started by predicting the G3 exam score simply using the G3 mean value. This naive approach produced a RMSE of 3.73, 
+In order to provide a benchmark for model development I started by predicting the G3 exam score simply using the G3 mean value. This naive approach produced a RMSE of 3.73. 
+```{r}
+  # Use the mean training_set G3 score as the prediction for all G3 scores. 
+  naive_pred <- mean(ts_p0$G3)
+  # Calculate RMSE for this model
+  naive_RMSE <- RMSE(test_set$G3,naive_pred)
+```
+
 
 #### Multivariate Linear Regression
 The first model developed was a Multivariate Linear Regression model. Using the caret package, cross validation and all of the available predictors we get an RMSE of 2.40 and the following summary. 
@@ -178,7 +197,6 @@ mul_reg_fit <- train(G3~., data = mul_reg_pp,method="lm",trControl = trainContro
  summary(mul_reg_fit)
 ```
 We can see from the summary of coefficients that there are a number of insignificant predictors which I subsequently removed for the next iteration of the model. This reduced the RMSE to 2.39. The plots below were used to further evaluate and refine the model. 
-
 ```{r echo=FALSE}
 set.seed(2009)
   mul_reg_fit <- train(G3~school+sex+studytime+reason+guardian+famsup+Pedu+Aalc+health+absences , data = mul_reg_pp,method="lm",trControl = trainControl(method = "repeatedcv",number = 10,repeats = 3))
@@ -186,17 +204,19 @@ set.seed(2009)
   plot(mul_reg_fit$finalModel)
 
 ```
-The flowing observation were made from the plots above.
+<br>
+The following observation were made from the plots above.
 
 ##### Residuals vs fit plot
   The residuals are partially randomly distributed around 0.
-  The relationship appears close to linear.
-  Thedata is not equally spread across the score range so there is some uncertainty.
+  The relationship appears to be close to linear.
+  The data is not equally spread across the score range so there is some uncertainty.
   3 outliers identified 309,373,562
 
 ##### Normal Q-Q
   The residuals approximate a normal distribution however there is some departure around the tails.
   A density plot of the residuals shown below shows that there is a slight negative skew.
+  <r>
 ```{r echo=FALSE}
 d<-density(mul_reg_fit$finalModel$residuals)
 plot(d,main='ResidualPlot',xlab='Residual value')
@@ -214,7 +234,12 @@ The following code shows how this was done and the subsequent reduction in RMSE(
   mul_reg_pp <- mul_reg_pp[-which(rownames(mul_reg_pp)%in% c("562","373","309")),]
 # Correct with skew with log
   set.seed(2009)
-  mul_reg_fit_log <- train(log10(G3)~school+sex+studytime+reason+guardian+famsup+Pedu+Aalc+health+absences, data = mul_reg_pp,method="lm",trControl = trainControl(method = "repeatedcv",number = 10,repeats = 3))
+  mul_reg_fit_log <- train(log10(G3)~school+sex+studytime+
+                             reason+guardian+famsup+Pedu+
+                             Aalc+health+absences,
+                           data = mul_reg_pp,method="lm",
+                           trControl = trainControl(method = "repeatedcv",
+                                                    number = 10,repeats = 3))
 # Inverse log to get RMSE
   skew_adu_results<-RMSE(mul_reg_pp$G3,10^mul_reg_fit_log$finalModel$fitted.values)
   skew_adu_results
@@ -224,7 +249,7 @@ Although it is possible to further refine this model by repeating the steps abov
 
 #### Penalized Linear Regression
 
-Rather than removing predictors we can use a model that penalize those predictors that are less contributive. By using the caret package and the glmnet (ridge&lasso) algorithm we can automate some of the processes above. The following code shows how this algorithm was optimized for the Lamda parameter. Additionally glmnet allows us to choose how the penalty if applied, ridge or lasso. We can see from the plot of the fit that the lowest RMSE is achieved with ridge and lamda around 0.6.
+Rather than removing predictors we can use a model that penalizes those predictors that contibute less. By using the caret package and the glmnet (ridge&lasso) algorithm we can automate some of the processes above. The following code shows how this algorithm was optimized for the Lamda parameter. Additionally glmnet allows us to choose how the penalty is applied, ridge or lasso. We can see from the plot of the fit that the lowest RMSE is achieved with ridge and lamda around 0.6.
 ```{r message=FALSE, warning=FALSE}
  # Tune using grid method 
   lambda <- seq(0.0001, 1, length = 100)
@@ -242,7 +267,6 @@ Once this model was tuned its produced and RMSE of 2.4.
 
 #### Regression Tree
 Regression tree models are a fast and easy to understand model that can provide accurate results. This model does not require normalized data and the fit can be easily plotted. 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 r_tree = train(G3 ~ ., 
                   data=ts_p9, 
@@ -259,6 +283,7 @@ Although the model can be easily understood from the plot it produces a relative
 
 A random forest algorithm was trained using the caret package and optimized for the mtry parameter. We can see from the plot below that the optimal value for mtry is 4. This produces a RMSE 2.37, a significant improvement on the regression tree. 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="random")
 set.seed(2017)
   rf_fit_tunes = train(G3 ~ ., 
                  data=ts_p9, 
@@ -313,7 +338,7 @@ model_comp <- tibble(Model=c("Naive","Multivariate Regression","Penalized Linear
        RMSE=c(naive_RMSE,skew_adu_results,min(glmnet_fit_tune$results$RMSE),min(r_tree$results$RMSE),min(rf_fit_tunes$results$RMSE),min(knn_fit_tuned$results$RMSE),min(svm_fit_tuned$results$RMSE)))
 model_comp %>% arrange(by=RMSE) %>% kable()
 ```
-We can see that Multivariate Regression has a significantly lower RMSE. The next 4 lowest RMSE models are closely grouped. The following paragraph focuses on the construction of an ensemble predicative model in an attempt to further improve the accuracy.
+We can see that Multivariate Regression has a significantly lower RMSE. The next 4 lowest RMSE models are closely grouped. The following paragraph focuses on the construction of an ensemble predicative model in an attempt to further improve model accuracy.
 
 #### Ensemble
 An ensemble model was created using the caretEnsemble package. The advantage of this package is that an ensemble algorithm can be quickly trained using the caret list and stack functions. The disadvantage is that each model cannot be individually tuned and that the multivariate regression model shown early cannot be included due to the modifications that have been made outside of the model. 
@@ -322,7 +347,8 @@ To construct the ensemble I have selected 5 of the top preforming models.
 set.seed(2017)
 model_list <- caretList(G3 ~ .,
     data=ts_p9,
-    trControl = trainControl(method="repeatedcv", number=10, repeats=3, savePredictions = "final"),
+    trControl = trainControl(method="repeatedcv", number=10, repeats=3,
+                             savePredictions = "final"),
     methodList = c("lm","glmnet", "rf", "knn","svmLinear"),
     tuneList = NULL,
     continue_on_fail = FALSE)
@@ -356,8 +382,7 @@ The ensemble model has the lowest RMSE, this is closely followed by the Multivar
 
 If we treat the test data set as if it were a new class of 63 students our aim is to predict their final grades. When the model is used to predict scores using the test data set we achieve a RMSE - 2.26. This is slightly higher than RMSE calculated during model training, a change in RMSE is to be expected and this change is not statistically significant. 
 
-Looking more closely at the predictions and the residuals we can see that there is a slight negative bias. The plot below shows a histogram of the residuals, the mean is below 0 at -0.11. This means that the model is on average predicted scores that are slightly higher than the observed scores.
-
+Looking closely at the predictions and the residuals we can see that there is a slight negative bias. The plot below shows a histogram of the residuals, the mean is below 0 at -0.11. This means that the model is on average predicted scores that are slightly higher than the observed scores.
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # Adjust test set to include Pedu & Aalc
 test_set_adj <- test_set %>% mutate(Pedu = (Medu+Fedu)/2,Aalc = (Dalc+Walc)/2) %>% select(-c(Medu,Fedu,Dalc,Walc))
@@ -381,16 +406,15 @@ labs(title= "Histogram of Residuals (training_set)", y = "Count", x = "Residual"
 ```
 There is no bias in these residuals so it is assumed the the bias above is due to a sample error. 
 
-Definitively determining whether or not this model is sufficiently precise requires a subject matter expert, in this case a teacher. We can however assume that the closer the predictions are to the final score the more useful they will be to the teacher. The maximum error is 5.19 considering that there are 20 points available of the exam this is a significant error. Despite this several predictions are close to the actual score. For the test data set the model predicted 78% of scores within 3 points of the actual G3. It is clear from the results that the models predictions cannot be totally relied upon however in most case they are reasonable indication of a students exam score. 
+Definitively determining whether or not this model is sufficiently precise requires a subject matter expert, in this case a teacher. We can however assume that the closer the predictions are to the final score the more useful they will be to the teacher. The maximum error is 5.19 considering that there are 20 points available of the exam this is a significant error. Despite this several predictions are close to the actual score. For the test data set the model predicted 78% of scores within 3 points of the actual G3. It is clear from the results that the models predictions cannot be totally relied upon however in most cases they are a good indication of a students final exam score. 
 
-We can see from the residuals histogram that there are some predictions that are significantly different from the actual score. The table below shows predictions that are have a residuals greater than and absolute value of 4.
+We can see from the residuals histogram that there are some predictions that are significantly different from the actual score. The table below shows predictions that have residuals greater than an absolute value of 4.
 
 ```{r}
 results %>% filter(abs(residual)>3) %>% arrange(by=residual) %>% kable()
 ```
 
 From the above table we can see that there appears to be a relationship between scores and residuals. The plot below shows all of the residuals and scores for the test set. 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(results,aes(scores, residual)) + 
   geom_jitter(color = "#59a14f", width = 0.1, alpha = 0.5,) + 
@@ -398,11 +422,10 @@ ggplot(results,aes(scores, residual)) +
 labs(title= "Scatter plot of Residuals and Scores", y = "Residuals", x = "Scores") + theme_minimal()
 ```
 The plot indicates that there is a positive correlation between scores and residuals. It is important to note that the residual is the actual score minus the prediction. This plot shows that the model is over predicting scores when the actual score is low and under predicting scores when the actual scores are high. This makes senses as the predictions are tending towards a mean. Although precision of the predictions might be improved we can expect to see a similar relationship in future models.  
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.align='left'}
 ggplot(results,aes(predictions, residual)) + 
   geom_point(color = "#f28e2b",alpha = 0.5,) + 
-  geom_smooth(color = "#f28e2b") + labs(title= "Scatter plot of Residuals and Preditions", y = "Residuals", x = "Predictions") theme_minimal()
+  geom_smooth(color = "#f28e2b") + labs(title= "Scatter plot of Residuals and Preditions", y = "Residuals", x = "Predictions") + theme_minimal()
 ```
 A plot of the residuals against the prediction shows that there is close to even variability across the range of predictions. This is a good indicator that the model is working correctly. 
 In summary the RMSE and residual analysis show that the ensemble model functions correctly on the test set and that the level of accuracy is similar to that observed during training. 
